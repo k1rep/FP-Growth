@@ -90,15 +90,33 @@ std::vector<std::vector<int>> get_fp_file(std::vector<std::string> &file, std::v
  */
 void connect_list(FP_TreeNode* new_node, std::vector<ItemHead> &item_head);
 
-// 创建FP-Tree
+/**
+ * 创建FP-Tree
+ * @param fp_file 过滤和重排后的数据
+ * @param item_head 项头表
+ * @return
+ */
 FP_TreeNode* create_fp_tree(std::vector<std::vector<int>> &fp_file, std::vector<ItemHead> &item_head);
 
-// 生成条件模式基
+/**
+ * 生成条件模式基
+ * @param item_head
+ * @param head
+ * @return
+ */
 std::vector<std::string> get_frequent_items(ItemHead &item_head, FP_TreeNode* &head);
 
-// 打印结果
+/**
+ * 递归得到结果
+ */
 void Print();
 
-// 递归得到结果
+/**
+ * 递归得到结果
+ * @param item_head 项头表
+ * @param head
+ * @param base
+ * @param result
+ */
 void get_result(std::vector<ItemHead> &item_head, FP_TreeNode &head, std::string &base, std::vector<ResultNode> &result);
 
