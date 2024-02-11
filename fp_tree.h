@@ -67,28 +67,20 @@ std::vector<std::string> read_file(const std::string& file_name);
 std::vector<ItemHead> get_item_head(std::vector<std::string> &file);
 
 /**
- * 判断temp是否在项头表中
- * @param temp 一行数据
- * @param str 项头表的一个项目
- * @return
- */
-bool is_in(const std::string& temp, const std::string& str);
-
-/**
  * 第二次扫描数据库，对树删除非频繁项，过滤和重排数据
  * @param file 数据行向量
  * @param item_head 项头表
  * @return
  */
-std::vector<std::vector<int>> get_fp_file(std::vector<std::string> &file, std::vector<ItemHead> &item_head);
+std::vector<std::vector<int>> get_fp_file(const std::vector<std::string> &file, const std::vector<ItemHead> &item_head);
 
 /**
  * 连接项头表和fp-tree的辅助函数
  * @param new_node 新节点
- * @param item_head 项头表
+ * @param item_heads 项头表
  * @return
  */
-void connect_list(FP_TreeNode* new_node, std::vector<ItemHead> &item_head);
+void connect_list(FP_TreeNode* new_node, std::vector<ItemHead> &item_heads);
 
 /**
  * 创建FP-Tree
@@ -100,6 +92,7 @@ FP_TreeNode* create_fp_tree(std::vector<std::vector<int>> &fp_file, std::vector<
 
 /**
  * 生成条件模式基
+ * 从项头表开始，沿着树的路径回溯到根节点，得到条件模式基
  * @param item_head
  * @param head
  * @return
@@ -107,16 +100,6 @@ FP_TreeNode* create_fp_tree(std::vector<std::vector<int>> &fp_file, std::vector<
 std::vector<std::string> get_frequent_items(ItemHead &item_head, FP_TreeNode* &head);
 
 /**
- * 递归得到结果
+ * 打印结果
  */
-void Print();
-
-/**
- * 递归得到结果
- * @param item_head 项头表
- * @param head
- * @param base
- * @param result
- */
-void get_result(std::vector<ItemHead> &item_head, FP_TreeNode &head, std::string &base, std::vector<ResultNode> &result);
-
+void Print(const std::vector<ResultNode> &result);

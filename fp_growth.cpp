@@ -1,9 +1,10 @@
 #include <fstream>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <sstream>
 #include <cmath>
 #include <iostream>
+#include <unordered_set>
 #include "fp_tree.h"
 using namespace std;
 
@@ -17,7 +18,6 @@ bool compare(ItemHead &a, ItemHead &b) {
 vector<string> read_file(const string& file_name) {
     vector<string> file;
     ifstream fin(file_name);
-    fin.exceptions(ifstream::failbit | ifstream::badbit);
     try{
         string temp;
         // 按行读取文件
@@ -35,7 +35,7 @@ vector<string> read_file(const string& file_name) {
 vector<ItemHead> get_item_head(vector<string> &file) {
     vector<ItemHead> head;
     // 对item计数
-    map<string, int> count;
+    unordered_map<string, int> count;
 
     // 第一次扫描数据库 对每个item进行计数
     for(const auto& it : file){
@@ -54,6 +54,7 @@ vector<ItemHead> get_item_head(vector<string> &file) {
             ItemHead ih;
             ih.data = stoi(it.first);
             ih.count = it.second;
+            ih.next = nullptr;
             head.push_back(ih);
         }
     }
@@ -68,35 +69,31 @@ bool is_in(const string& temp, const string& str) {
     return temp.find(str) != string::npos;
 }
 
-vector<vector<int>> get_fp_file(vector<string> &file, vector<ItemHead> &head) {
+vector<vector<int>> get_fp_file(const vector<string> &file, const vector<ItemHead> &head) {
     vector<vector<int>> fp_file;
-    vector<int> fp_i;
-    // 第二次扫描数据库，删除非频繁项进行过滤，根据项头表重排数据
-    for (auto &i: file) {
-        // 已经排过序的项头表
-        for (auto &k: head) {
-            string s;
-            int n = k.data;
-            stringstream ss;
-            ss << n;
-            ss >> s;
-            if (is_in(i, s)) {
+    unordered_set<int> headData;
+    for (const auto &h : head) {
+        headData.insert(h.data);
+    }
+
+    for (const auto &i : file) {
+        vector<int> fp_i;
+        for (const auto &n : headData) {
+            if (is_in(i, std::to_string(n))) {
                 fp_i.push_back(n);
             }
         }
         if (!fp_i.empty()) {
-            fp_file.push_back(fp_i);
-            fp_i.clear();
+            fp_file.push_back(std::move(fp_i));
         }
     }
-    file.clear();
-    // 生成删除非频繁项和降序排列的数据集
     return fp_file;
 }
 
 
+
 void connect_list(FP_TreeNode* new_node, vector<ItemHead> &connect_list) {
-    for(auto & m : connect_list) {
+    for (auto &m : connect_list) {
         if (m.data == new_node->data) {
             if (m.next == nullptr) {
                 m.next = new_node;
@@ -109,10 +106,11 @@ void connect_list(FP_TreeNode* new_node, vector<ItemHead> &connect_list) {
                 }
                 t2->next = new_node;
             }
-            break;
+            break; // 找到对应的item_head，退出循环
         }
     }
 }
+
 
 int c = 0;
 FP_TreeNode* create_fp_tree(vector<vector<int>> &fp_file, vector<ItemHead> &head) {
@@ -208,16 +206,15 @@ vector<string> get_frequent_items(ItemHead &item_head, FP_TreeNode* &head) {
     while (p) {
         FP_TreeNode *q = p;
         vector<string> temp;
-        while (q->father != head) {
+        // 确保不会遍历到根节点的父节点（即 nullptr）
+        while (q != nullptr && q->father != nullptr && q->father != head) {
             q = q->father;
             stringstream ss;
             string x;
-            int n;
-            n = q->data;
+            // 直接使用 to_string 函数转换整数为字符串
+            x = std::to_string(q->data);
 
-            ss << n;
-            ss >> x;
-
+            // 添加一个空格作为项之间的分隔符，如果需要
             temp.push_back(x + " ");
         }
         reverse(temp.begin(), temp.end());
@@ -236,56 +233,54 @@ vector<string> get_frequent_items(ItemHead &item_head, FP_TreeNode* &head) {
     return rfile;
 }
 
+void get_result(vector<ItemHead> &item_head, FP_TreeNode* &head, string &base, vector<ResultNode> &result) {
+    if(item_head.empty()) {
+        return;
+    }
+    for (auto p = item_head.rbegin(); p != item_head.rend(); ++p) {
+        string itemString = std::to_string(p->data);
+        string newBase = base + " " + itemString;
 
-vector<ResultNode> result;
-void get_result(vector<ItemHead> &item_head, FP_TreeNode* &head, string &base ,vector<ResultNode> &result) {
-    if(item_head.empty()) return;
-    //遍历项头表依次挖掘，找到每项的条件模式基
-    for(auto p = item_head.rbegin(); p != item_head.rend(); p++) {
         ResultNode temp;
-        int n;
-        n = p->data;//int to string
-        stringstream ss;
-        string x;
-        ss << n;
-        ss >> x;
-        string xx = base.append(" ").append(x) ;
-        temp.data = xx;
+        temp.data = newBase;
         temp.count = p->count;
         result.push_back(temp);
-        // 开始递归
+
         // 产生条件模式基
-        vector<string> file1 = get_frequent_items(*p, head);
-        vector<ItemHead> headlist1 = get_item_head(file1);//getL1
-        vector<vector<int> > rfile1 = get_fp_file(file1, headlist1);
+        vector<string> conditionalPatternBase = get_frequent_items(*p, head);
+        vector<ItemHead> newHeadList = get_item_head(conditionalPatternBase);
+        vector<vector<int>> newFpFile = get_fp_file(conditionalPatternBase, newHeadList);
 
-        FP_TreeNode *Tree = create_fp_tree(rfile1, headlist1);
-
-        string s = base.append(" ").append(x);
-        //产生频繁项集结果
-        get_result(headlist1, Tree, s, result);
+        FP_TreeNode* newTree = create_fp_tree(newFpFile, newHeadList);
+        string s = base + " " + itemString;
+        // 递归产生频繁项集结果
+        get_result(newHeadList, newTree, s, result);
     }
 }
 
-void Print() {
-    ofstream outfile;
-    outfile.open("./result.txt");
+
+void Print(const vector<ResultNode> &result) {
+    ofstream outfile(OUT_FILE);
+    if(!outfile.is_open()) {
+        cout << "Open file error!" << endl;
+        return;
+    }
+
     for (const auto & p : result) {
-        outfile << p.data << " " << "(" << p.count << ")" << endl;
+        outfile << std::left << std::setw(20) << p.data << " " << "(" << p.count << ")" << endl;
     }
-    outfile.close();
 }
 
-const string filename = "./chainstoreFIM.txt";
-//const string filename = "./OnlineRetailZZ.txt";
+
 int main(){
-    vector<string> file = read_file(filename);
+    vector<ResultNode> result;
+    vector<string> file = read_file(DATA_FILE);
     vector<ItemHead> headlist = get_item_head(file);
     vector<vector<int>> fp_file = get_fp_file(file,headlist);
     FP_TreeNode* head = create_fp_tree(fp_file,headlist);
     string base=" ";
     get_result(headlist,head,base,result);
-    Print();
+    Print(result);
     cout<<result.size();
     return 0;
 }
